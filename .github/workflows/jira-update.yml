@@ -1,9 +1,9 @@
 name: Jira Update
 
 on:
-  pull_request:
-    types: [opened, closed, edited, synchronize]
-
+    pull_request:
+        types: [opened, synchronize, reopened]
+    # lame comment 21
 jobs:
   update-jira:
     runs-on: ubuntu-latest
@@ -27,19 +27,22 @@ jobs:
           fi
 
       - name: Update Jira Issue
-        if: github.event.pull_request.merged == true
+        # if: github.event.pull_request.merged == false 
+        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
         env:
-          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
-          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_API_TOKEN: ${{ env.Action_keys.secrets.JIRA_API_TOKEN }}
+          JIRA_EMAIL: ${{ env.Action_keys.secrets.JIRA_EMAIL }}
+          JIRA_BASE_URL: ${{ env.Action_keys.secrets.JIRA_BASE_URL }}
         run: |
           PROJECT_KEY=${{ steps.parse_branch.outputs.project_key }}
           ISSUE_NUMBER=${{ steps.parse_branch.outputs.issue_number }}
           ISSUE_KEY="${PROJECT_KEY}"
           COMMIT_MESSAGE=$(git log -1 --pretty=format:"%s")
           PULL_REQUEST_URL=${{ github.event.pull_request.html_url }}
+          echo "Updating Jira issue: $ISSUE_KEY ${{env.JIRA_BASE_URL}}"
+            #   echo ${{env.JIRA_BASE_URL}}/rest/api/3/issue/${env.ISSUE_KEY}
           curl -X PUT \
-            -u $JIRA_EMAIL:$JIRA_API_TOKEN \
+            -u $JIRA_EMAIL:${{ env.Action_keys.JIRA_API_TOKEN }} \
             -H "Content-Type: application/json" \
             --data '{
               "update": {
@@ -59,5 +62,4 @@ jobs:
                 ]
               }
             }' \
-            echo "$JIRA_BASE_URL/rest/api/3/issue/$ISSUE_KEY"
-            "$JIRA_BASE_URL/rest/api/3/issue/$ISSUE_KEY"
+            "${{env.JIRA_BASE_URL}}/rest/api/3/issue/${{env.ISSUE_KEY}}"
